@@ -10,7 +10,7 @@ from pathlib import Path
 
 CPP = (".cpp", ".cc", ".cxx", ".c")
 DROP = ("-c", "-MD", "-MMD", "-MP")
-DROP_WITH_VALUE = ("-o", "-MT", "-MF")
+DROP_WITH_VALUE = ("-o", "-MT", "-MF", "-MJ")
 
 
 def capture(command, cwd=None):
@@ -94,6 +94,12 @@ def command_arguments(command):
 def syntax_only(entry, source):
     arguments = command_arguments(entry["command"])
     directory = Path(entry["directory"])
+    return syntax_arguments(arguments, directory, source)
+
+
+def syntax_arguments(arguments, directory, source):
+    if not isinstance(arguments, list) or not arguments or any(not isinstance(argument, str) for argument in arguments) or not arguments[0]:
+        raise ValueError("arguments must be a nonempty list of strings with an executable")
     wanted = source.resolve()
     trimmed = []
     index = 0
@@ -102,7 +108,7 @@ def syntax_only(entry, source):
         if argument in DROP_WITH_VALUE:
             index += 2
             continue
-        if argument in DROP:
+        if argument in DROP or argument.startswith("-MJ"):
             index += 1
             continue
         if not argument.startswith("-"):
@@ -130,7 +136,9 @@ def check(root, build, files):
             print(f"{name}: no compile command in {build}", file=sys.stderr)
             continue
         checked += 1
-        result = subprocess.run(syntax_only(entry, source), cwd=entry["directory"],
+        command = (syntax_arguments(entry["arguments"], Path(entry["directory"]), source)
+                   if "arguments" in entry else syntax_only(entry, source))
+        result = subprocess.run(command, cwd=entry["directory"],
                                 capture_output=True, text=True, encoding="utf-8", errors="replace")
         if result.returncode == 0:
             continue

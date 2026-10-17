@@ -1,3 +1,16 @@
+if(BUILD_TESTING)
+    add_test_executable(guest_safe_error_tests ${LIBS_INCLUDE_DIR}/tests/GuestSafeErrors.cpp)
+    target_include_directories(guest_safe_error_tests PRIVATE ${LIBS_INCLUDE_DIR})
+    target_link_libraries(guest_safe_error_tests PRIVATE libc)
+    configure_windows_unwind(guest_safe_error_tests)
+    add_test(NAME guest_safe_errors COMMAND guest_safe_error_tests)
+    set_tests_properties(guest_safe_errors PROPERTIES TIMEOUT 10)
+    if(WIN32)
+        set_tests_properties(guest_safe_errors PROPERTIES ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:libc>")
+    endif()
+endif()
+
 target_sources(libc PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Export.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/src/General.cpp
@@ -743,6 +756,7 @@ if(MINGW)
         target_link_libraries(guest_message_destructor_abi_tests PRIVATE libc)
         configure_windows_unwind(guest_message_destructor_abi_tests)
         foreach(mode IN ITEMS control decoy zero release regex-decoy regex-zero
+                runtime-decoy runtime-zero doraise-decoy doraise-zero
                 unshared-decoy unshared-zero regex-unshared-decoy regex-unshared-zero)
             add_test(NAME guest_message_destructor_${mode} COMMAND guest_message_destructor_abi_tests ${mode})
             set_tests_properties(guest_message_destructor_${mode} PROPERTIES TIMEOUT 10
